@@ -10,19 +10,27 @@ public class GameCanvas : MonoBehaviour
 
     private float _time;
 
+    private float _basewidth=1920.0f;
+    private float _baseheight=1080.0f;
+
     void Awake()
     {
-        GameManager.Instance.Initialize();
+        _rectTr=this.GetComponentInChildren<RectTransform>();
+        float a=_baseheight/_basewidth;
+        float b=_rectTr.sizeDelta.y/_rectTr.sizeDelta.x;
+        float GameScale=a/b;
+
+        GameManager.Instance.Initialize(this);
 
         _gameManager=GameManager.Instance;
 
-        GameObject newGround =Instantiate(_ground, new Vector3(0.0f,-2.26f,1.0f), transform.rotation) as GameObject;        
+        GameObject newGround =Instantiate(_ground, new Vector3(0.0f,-2.26f,1.0f), transform.rotation) as GameObject;
+        newGround.transform.localScale*=GameScale;        
         newGround.transform.SetParent(this.transform);
 
         GameObject newSky=Instantiate(_sky, new Vector3(0.0f,0.0f,50.0f), transform.rotation) as GameObject;
+        newSky.transform.localScale*=GameScale;
         newSky.transform.SetParent(this.transform);
-
-        _rectTr=this.GetComponentInChildren<RectTransform>();
 
         SetUI();
     }
@@ -34,9 +42,7 @@ public class GameCanvas : MonoBehaviour
     public GameObject _sky;
     private GameObject _playPan;
     private Text _score;
-    private RectTransform _rectTr=null;
-    private RectTransform _titleTr=null;
-    private RectTransform _popupTr=null;
+    private RectTransform _rectTr=null, _titleTr=null, _pauseTr=null, _scoreTr=null;
     private IEnumerator _updateUIIEumerator=null;
     public void ReadytoPlay()
     {
@@ -61,6 +67,7 @@ public class GameCanvas : MonoBehaviour
         StartCoroutine(_updateUIIEumerator);
         _titleTr.gameObject.SetActive(false);
         _score.gameObject.SetActive(true);
+        _scoreTr.gameObject.SetActive(false);
     }
 
     private IEnumerator UpdateUI()
@@ -80,6 +87,7 @@ public class GameCanvas : MonoBehaviour
         SetTitlePage();
         SetPauseButton();
         SetPausePage();
+        SetScorePage();
         _score=_rectTr.Find("Score").GetComponent<Text>();
         _score.text=string.Format("Score: {0}", _gameManager.ReturnScore());
         _score.gameObject.SetActive(false);
@@ -100,7 +108,7 @@ public class GameCanvas : MonoBehaviour
     {
         _pauseGame=true;
         _gameManager.PauseGame(_pauseGame);
-        _popupTr.gameObject.SetActive(_pauseGame);
+        _pauseTr.gameObject.SetActive(_pauseGame);
         Time.timeScale=0.0f;
     }
 
@@ -108,7 +116,7 @@ public class GameCanvas : MonoBehaviour
     {
         _pauseGame=false;
         _gameManager.PauseGame(_pauseGame);
-        _popupTr.gameObject.SetActive(_pauseGame);
+        _pauseTr.gameObject.SetActive(_pauseGame);
         Time.timeScale=1.0f;
     }
 
@@ -123,41 +131,110 @@ public class GameCanvas : MonoBehaviour
 
     private void SetPausePage()
     {
-        if(_popupTr==null) _popupTr=_rectTr.Find("PausePage").GetComponent<RectTransform>();
-        _popupTr.GetComponent<Button>().onClick.RemoveAllListeners();
-        _popupTr.GetComponent<Button>().onClick.AddListener(()=>{
+        if(_pauseTr==null) _pauseTr=_rectTr.Find("PausePage").GetComponent<RectTransform>();
+        _pauseTr.GetComponent<Button>().onClick.RemoveAllListeners();
+        _pauseTr.GetComponent<Button>().onClick.AddListener(()=>{
             ResumeGame();
         });
-        _popupTr.gameObject.SetActive(false);
+        _pauseTr.gameObject.SetActive(false);
+    }
+
+    private void RestartGame()
+    {
+        Destroy(_playPan);
+        ReadytoPlay();
+    }
+    private void BacktoTitle()
+    {
+        Destroy(_playPan);
+        _gameManager._difficulty=0;
+        _obstacleVelocity.x=-8.0f;
+        _minRange=0.8f;
+        _maxRange=1.4f;
+        _titleTr.gameObject.SetActive(true);
+        _score.gameObject.SetActive(false);
+        _scoreTr.gameObject.SetActive(false);
+    }
+    private void SetScorePage()
+    {
+        if(_scoreTr==null) _scoreTr=_rectTr.Find("ScorePage").GetComponent<RectTransform>();
+        
+        Button restartButton=_scoreTr.Find("Restart").GetComponent<Button>();
+        restartButton.onClick.RemoveAllListeners();
+        restartButton.onClick.AddListener(()=>{
+            this.RestartGame();
+        });
+        
+        Button titleButton=_scoreTr.Find("BacktoTitle").GetComponent<Button>();
+        titleButton.onClick.RemoveAllListeners();
+        titleButton.onClick.AddListener(()=>{
+            this.BacktoTitle();
+        });
+
+        _scoreTr.gameObject.SetActive(false);
     }
 #endregion
 
+#region GAME LOGIC
+    private float _obsTime=1.2f;
+    private float _minRange=0.8f;
+    private float _maxRange=1.4f;
+    private Vector2 _obstacleVelocity=new Vector2(-8.0f, 0.0f);
+    private int _randomFlag=1;
     void Update()
     {
         
         _time+=Time.deltaTime;
+        int flag;
 
-        if(_time>1.2f&&_gameManager.NowGame())
+        if(_time>_obsTime&&_gameManager.NowGame())          
         {
-            int flag=Random.Range(1,6);
-            for(int i=0;i<flag;i++)
+            if(_randomFlag<6) flag=_randomFlag++;   //start phase
+            else                                    //random phase
             {
-                GameObject newObstacle =Instantiate(_obstacle, new Vector3(14.0f,-1.0f+1.0f*i,10.0f), transform.rotation) as GameObject;
-                newObstacle.GetComponent<Block>().Initialize(_gameManager.ObstacleVelocity);
-                newObstacle.transform.SetParent(_playPan.transform);
+                flag=Random.Range(1,6);
+                if(++_gameManager._difficulty%5==0)
+                {
+                    _obstacleVelocity.x-=0.6f;
+                    _minRange-=0.04f;
+                    _maxRange-=0.02f;
+                }
             }
 
-            GameObject newScoreBlock =Instantiate(_scoreBlock, new Vector3(14.0f,0.0f,10.0f), transform.rotation) as GameObject;
-            newScoreBlock.GetComponent<ScoreBlock>().Initialize(_gameManager.ObstacleVelocity);
-            newScoreBlock.transform.SetParent(_playPan.transform);
+            for(int i=0;i<flag;i++)
+            {
+                SpawnObstacle(new Vector3(14.0f,-1.0f+1.0f*i,10.0f));
+            }
+
+            SpawnScoreBlock(new Vector3(14.0f,0.0f,10.0f));
 
             _time=0.0f;
-        }
-        else if(_time>5.0f) 
-        {
-            Destroy(_playPan);
-            _titleTr.gameObject.SetActive(true);
-            _score.gameObject.SetActive(false);
+            _obsTime=Random.Range(_minRange,_maxRange);
+            
+            
         }
     }
+
+    private void SpawnObstacle(Vector3 NewPosition)
+    {
+        GameObject newObstacle =Instantiate(_obstacle, NewPosition, transform.rotation) as GameObject;
+        newObstacle.GetComponent<Block>().Initialize(_obstacleVelocity);
+        newObstacle.transform.SetParent(_playPan.transform);
+    }
+
+    private void SpawnScoreBlock(Vector3 NewPosition)
+    {
+        GameObject newScoreBlock =Instantiate(_scoreBlock, NewPosition, transform.rotation) as GameObject;
+        newScoreBlock.GetComponent<ScoreBlock>().Initialize(_obstacleVelocity);
+        newScoreBlock.transform.SetParent(_playPan.transform);
+    }
+
+    public void ShowScorePage(int HighScore)
+    {
+        _scoreTr.gameObject.SetActive(true);
+        Text highScoretext=_scoreTr.Find("HighScoreText").GetComponent<Text>();
+        highScoretext.text=string.Format("HighScore: {0}", HighScore);
+    }
+
+#endregion
 }

@@ -9,7 +9,6 @@ public class Player : MonoBehaviour
     private Rigidbody2D _rb2D = null;
     private GameManager _gameManager=null;
     private int _legNum;
-    private bool _playFlag;
     private AudioSource _deadSound;
     public void Initialize()                //Initialize Player Object
     {
@@ -22,7 +21,6 @@ public class Player : MonoBehaviour
         }
         
         _legNum=0;
-        _playFlag=false;
         _deadSound=_transform.GetComponent<AudioSource>();
     }
 
@@ -32,7 +30,7 @@ public class Player : MonoBehaviour
         if(Input.GetMouseButtonDown(0)&&EventSystem.current.IsPointerOverGameObject(0)==false)
         {
             Vector2 PrevPos=_rb2D.position;
-            SpawnLeg(PrevPos);
+            if(_legNum<5&&_rb2D.position.x<4.0f) SpawnLeg(PrevPos);
         }
     }
 
@@ -41,7 +39,6 @@ public class Player : MonoBehaviour
 
     public void SpawnLeg(Vector2 PrevPos)
     {
-        if(_legNum>5) return;
         _rb2D.position=new Vector2(PrevPos.x, PrevPos.y+0.78f);
 
         GameObject Leg=Instantiate(_leg, new Vector2(PrevPos.x, PrevPos.y+0.08f), _transform.rotation);
@@ -52,14 +49,15 @@ public class Player : MonoBehaviour
 
     public void DeleteLeg()
     {
-        _legNum--;
+        if(_legNum<0) _legNum=0;
+        else _legNum--;
     }
 
     void OnCollisionEnter2D(Collision2D other)      //Game over
     {
         if(other.gameObject.CompareTag(Tag.OBSTACLE))
         {
-            _gameManager.ReturnCam().GetComponent<CameraShaker>().ShakeCamera(0.1f);
+            _gameManager.ReturnCam().GetComponent<CameraShaker>().ShakeCamera(0.3f);
             _rb2D.constraints=RigidbodyConstraints2D.None;
             _rb2D.AddForce(new Vector2(-200.0f,0.0f));
             _rb2D.AddTorque(200.0f);

@@ -27,7 +27,7 @@ public class CameraShaker : MonoBehaviour               //Shake camera when play
 
         if(_shakeTime>0.0f)
         {
-            this.transform.position=Random.insideUnitSphere*(0.15f)+_initialLoc;
+            this.transform.position=Random.insideUnitSphere*(0.35f)+_initialLoc;
             _shakeTime-=Time.deltaTime;
         }
         else

@@ -18,4 +18,9 @@ public class ImgScroll : MonoBehaviour                  //Repeat and scroll back
         _offset+=Time.deltaTime*_scrollSpeed;
         _renderer.material.SetTextureOffset("_MainTex", new Vector2(_offset, 0.0f));
     }
+
+    public void AddOffset(float AddNum)
+    {
+        _offset+=AddNum;
+    }
 }

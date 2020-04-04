@@ -19,11 +19,15 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void Initialize()
+    private GameCanvas _gameCanvas;
+    public void Initialize(GameCanvas gameCanvas)
     {
+        _gameCanvas=gameCanvas;
+
         DontDestroyOnLoad(this);
         _mainCamera=GameObject.FindWithTag("MainCamera").GetComponent<Camera>();
         _gameScore=0;
+        _highScore=0;
     }
 
 #region GAME VARIABLES
@@ -47,6 +51,7 @@ public class GameManager : MonoBehaviour
 
     private bool _startGame=false;
     private bool _pauseGame;
+    private int _highScore=0;
 
     public bool NowGame(){return _startGame;}
     public void StartGame()
@@ -55,10 +60,16 @@ public class GameManager : MonoBehaviour
         _startGame=true;
     }
 
-    public void FinishGame(){_startGame=false;}
+    public void FinishGame()
+    {
+        _startGame=false;
+        if(_gameScore>_highScore) _highScore=_gameScore;
+        _gameCanvas.ShowScorePage(_highScore);
+    }
 
     public void PauseGame(bool Pause){_pauseGame=Pause;}
-#endregion
 
-    public Vector2 ObstacleVelocity=new Vector2(-8.0f, 0.0f);
+    public int _difficulty=0;
+
+#endregion
 }
